@@ -1,0 +1,556 @@
+#%RAML 1.0
+title: MS3 Contact Management API
+version: v1.0
+mediaType: application/json
+description: This API is used to manage MS3 Contacts. It exposes functionality to  retrieve, add, update, and delete people along with their associated address information & contact methods.
+
+types:
+  person:
+    properties:
+      personId?: integer
+      firstName: string
+      lastName: string
+      DOB?: date-only
+      gender?: string
+      title?: string
+      address?: address[]
+      contactMethod?: contactMethod[]
+  
+  address:
+    properties:
+      addressId?: integer
+      personId?: integer
+      type: string
+      number: integer
+      unit?: integer
+      street: string
+      city: string
+      state: string
+      zipcode: integer
+      
+  contactMethod:
+    properties:
+      contactMethodId?: integer
+      personId?: integer
+      type: string
+      value: string
+      preferred: boolean
+
+/people:
+  get:
+    description: List all people matching query criteria, if provided; otherwise, list all people.
+    queryParameters: 
+      firstName?: string
+      lastName?: string
+    responses:
+      200:
+        body:
+          application/json:
+            type: person[]
+            example: |
+              [
+                {
+                  "personId": 2,
+                  "firstName": "Andrew",
+                  "lastName": "Fichter",
+                  "DOB": "1982-01-27",
+                  "gender": "Male",
+                  "title": "Mr.",
+                  "address": [
+                    {
+                      "addressId": 1,
+                      "type": "Home",
+                      "number": 709,
+                      "street": "Harvey St",
+                      "city": "Baltimore",
+                      "state": "MD",
+                      "zipcode": 21230
+                    },
+                    {
+                      "addressId": 2,
+                      "type": "Work",
+                      "number": 19130,
+                      "street": "Roman Way",
+                      "city": "Montomery Village",
+                      "state": "MD",
+                      "zipcode": 20886
+                    }
+                  ],
+                  "contactMethod": [
+                    {
+                      "contactMethodId": 1,
+                      "type": "Cell",
+                      "value": "240-274-4459",
+                      "preferred": true
+                    }
+                  ]
+                }
+              ]
+  post:
+    description: Add a new person, with optional address and contact information.
+    body:
+      application/json:
+        type: person
+        example: |
+          {
+            "firstName": "Andrew",
+            "lastName": "Fichter",
+            "DOB": "1982-01-27",
+            "gender": "Male",
+            "title": "Mr.",
+            "address": [
+              {
+                "type": "Home",
+                "number": 709,
+                "street": "Harvey St",
+                "city": "Baltimore",
+                "state": "MD",
+                "zipcode": 21230
+              },
+              {
+                "type": "Work",
+                "number": 19130,
+                "street": "Roman Way",
+                "city": "Montomery Village",
+                "state": "MD",
+                "zipcode": 20886
+              }
+            ],
+            "contactMethod": [
+              {
+                "type": "Cell",
+                "value": "240-274-4459",
+                "preferred": true
+              }
+            ]
+          }
+    responses:
+      201:
+        body:
+          application/json:
+            type: person
+            example: |
+              {
+                "personId": 2,
+                "firstName": "Andrew",
+                "lastName": "Fichter"
+              }
+  /{personId}:
+      uriParameters:
+        personId: integer
+      get:
+        description: Get a person (with associated address and contact info) by ID.
+        responses: 
+          200:
+            body:
+              application/json:
+                type: person
+                example: |
+                  {
+                    "personId": 2,
+                    "firstName": "Andrew",
+                    "lastName": "Fichter",
+                    "DOB": "1982-01-27",
+                    "gender": "Male",
+                    "title": "Mr.",
+                    "address": [
+                      {
+                        "addressId": 1,
+                        "type": "Home",
+                        "number": 709,
+                        "street": "Harvey St",
+                        "city": "Baltimore",
+                        "state": "MD",
+                        "zipcode": 21230
+                      },
+                      {
+                        "addressId": 2,
+                        "type": "Work",
+                        "number": 19130,
+                        "street": "Roman Way",
+                        "city": "Montomery Village",
+                        "state": "MD",
+                        "zipcode": 20886
+                      }
+                    ],
+                    "contactMethod": [
+                      {
+                        "contactMethodId": 1,
+                        "type": "Cell",
+                        "value": "240-274-4459",
+                        "preferred": true
+                      }
+                    ]
+                  }
+          404:
+            body: 
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message" : "Person not found"
+                  }
+      put:
+        description: Update a person by ID.
+        body:
+          application/json:
+            type: person
+            example: |
+              {
+                "personId": 2,
+                "firstName": "Andrew",
+                "lastName": "Fichter",
+                "DOB": "1982-01-27",
+                "gender": "Male",
+                "title": "Mr."
+              }
+        responses: 
+          200:
+            body:
+              application/json:
+                type: person
+                example: |
+                  {
+                    "personId": 2,
+                    "firstName": "Andrew",
+                    "lastName": "Fichter",
+                    "DOB": "1982-01-27",
+                    "gender": "Male",
+                    "title": "Mr.",
+                    "address": [
+                      {
+                        "addressId": 1,
+                        "type": "Home",
+                        "number": 709,
+                        "street": "Harvey St",
+                        "city": "Baltimore",
+                        "state": "MD",
+                        "zipcode": 21230
+                      },
+                      {
+                        "addressId": 2,
+                        "type": "Work",
+                        "number": 19130,
+                        "street": "Roman Way",
+                        "city": "Montomery Village",
+                        "state": "MD",
+                        "zipcode": 20886
+                      }
+                    ],
+                    "contactMethod": [
+                      {
+                        "contactMethodId": 1,
+                        "type": "Cell",
+                        "value": "240-274-4459",
+                        "preferred": true
+                      }
+                    ]
+                  }
+          404:
+            body:
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message": "Person does not exist, could not be updated"
+                  }      
+      delete:
+        description: Delete a person by ID.
+        responses:
+          204:
+            body:
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message": "Person ID 2 successfully deleted"
+                  }
+          404:
+            body:
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message": "Person no longer exists and could not be deleted"
+                  }
+      /addresses:
+        get:
+          description: List all address records tied to a person.
+          responses: 
+            200:
+              body:
+                application/json:
+                  type: address[]
+                  example: |
+                    [
+                      {
+                        "addressId": 1,
+                        "type": "Home",
+                        "number": 709,
+                        "street": "Harvey St",
+                        "city": "Baltimore",
+                        "state": "MD",
+                        "zipcode": 21230
+                      },
+                      {
+                        "addressId": 2,
+                        "type": "Work",
+                        "number": 19130,
+                        "street": "Roman Way",
+                        "city": "Montomery Village",
+                        "state": "MD",
+                        "zipcode": 20886
+                      }
+                    ]
+        post:
+          description: Add a new address record for a person.
+          body:
+            application/json:
+              type: address
+              example: |
+                {
+                  "type": "Work",
+                  "number": 19130,
+                  "street": "Roman Way",
+                  "city": "Montomery Village",
+                  "state": "MD",
+                  "zipcode": 20886
+                }
+          responses:
+            201:
+              body:
+                application/json:
+                  type: address
+                  example: |
+                    {
+                      "addressId": 2,
+                      "type": "Work",
+                      "number": 19130,
+                      "street": "Roman Way",
+                      "city": "Montomery Village",
+                      "state": "MD",
+                      "zipcode": 20886
+                    }
+      /contact-methods:
+        get: 
+          description: List all contact methods tied to a person.
+          responses: 
+            200:
+              body:
+                application/json:
+                  type: contactMethod[]
+                  example: |
+                    [
+                      {
+                        "contactMethodId": 1,
+                        "type": "Home",
+                        "value": "301-963-0532",
+                        "preferred": false
+                      },
+                      {
+                        "contactMethodId": 2,
+                        "type": "Mobile",
+                        "value": "240-274-4459",
+                        "preferred": true
+                      }
+                    ]
+        post:
+          description: Add a new contact method for a person.
+          body:
+            application/json:
+              type: contactMethod
+              example: |
+                {
+                  "contactMethodId": 1,
+                  "type": "Home",
+                  "value": "301-963-0532",
+                  "preferred": false
+                }
+          responses:
+            201:
+              body:
+                application/json:
+                  type: contactMethod
+                  example: |
+                    {
+                      "contactMethodId": 1,
+                      "type": "Home",
+                      "value": "301-963-0532",
+                      "preferred": false
+                    }
+/addresses:
+  /{addressId}:
+      uriParameters:
+        addressId: integer
+      get:
+        description: Get address record by ID
+        responses: 
+          200:
+            body:
+              application/json:
+                type: address
+                example: |
+                  {
+                    "addressId": 2,
+                    "personId" : 1,
+                    "type": "Work",
+                    "number": 19130,
+                    "street": "Roman Way",
+                    "city": "Montomery Village",
+                    "state": "MD",
+                    "zipcode": 20886
+                  }
+          404:
+            body: 
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message" : "Address record not found"
+                  }
+      put:
+        description: Update address record by ID
+        body:
+          application/json:
+            type: address
+            example: |
+              {
+                "type": "Work",
+                "number": 19130,
+                "street": "Roman Way",
+                "city": "Montomery Village",
+                "state": "MD",
+                "zipcode": 20886
+              }
+        responses: 
+          200:
+            body:
+              application/json:
+                type: address
+                example: |
+                  {
+                    "addressId": 2,
+                    "type": "Work",
+                    "number": 19130,
+                    "street": "Roman Way",
+                    "city": "Montomery Village",
+                    "state": "MD",
+                    "zipcode": 20886
+                  }
+          404:
+            body:
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message": "Address record does not exist, could not be                                 updated"
+                  }
+      delete:
+        description: Delete address record by ID
+        responses:
+          204:
+            body:
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message": "Address ID 2 successfully deleted"
+                  }
+          404:
+            body:
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message": "Address record no longer exists and could not be deleted"
+                  }
+/contactMethods:
+  /{contactMethodId}:
+    uriParameters:
+      contactMethodId: integer
+    get:
+      description: Get contact method by ID
+      responses: 
+          200:
+            body:
+              application/json:
+                type: contactMethod
+                example: |
+                  {
+                    "contactMethodId": 1,
+                    "personId": 1,
+                    "type": "Home",
+                    "value": "301-963-0532",
+                    "preferred": false
+                  }
+          404:
+            body: 
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message" : "Contact method record not found"
+                  }
+    put:
+      description: Update contact method by ID
+      body:
+          application/json:
+            type: contactMethod
+            example: |
+              {
+                "contactMethodId": 1,
+                "type": "Home",
+                "value": "301-963-0532",
+                "preferred": false
+              }
+      responses: 
+          200:
+            body:
+              application/json:
+                type: contactMethod
+                example: |
+                  {
+                    "contactMethodId": 1,
+                    "type": "Home",
+                    "value": "301-963-0532",
+                    "preferred": false
+                  }
+          404:
+            body:
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message": "Contact method record does not exist, could not be                                 updated"
+                  }
+    delete:
+      description: Delete contact method by ID
+      responses:
+          204:
+            body:
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message": "Contact method record ID 2 successfully deleted"
+                  }
+          404:
+            body:
+              application/json:
+                properties:
+                  message: string
+                example: |
+                  {
+                    "message": "Contact method record no longer exists and could not be deleted"
+                  }

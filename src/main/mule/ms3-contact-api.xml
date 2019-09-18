@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+    <http:listener-config name="ms3-contact-api-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="ms3-contact-api-config" raml="ms3-contact-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus">
+        <apikit:flow-mappings>
+			<apikit:flow-mapping resource="/people" action="get" flow-ref="GET:People" />
+			<apikit:flow-mapping resource="/people/{personId}" action="get" flow-ref="GET:Person" />
+			<apikit:flow-mapping resource="/people/{personId}" action="delete" flow-ref="DELETE:Person" />
+			<apikit:flow-mapping resource="/people" action="post" flow-ref="POST:Person" />
+			<apikit:flow-mapping resource="/people/{personId}" action="put" flow-ref="PUT:Person" />
+			<apikit:flow-mapping resource="/people/{personId}/addresses" action="get" flow-ref="GET:PersonAddresses" />
+			<apikit:flow-mapping resource="/people/{personId}/addresses" action="post" flow-ref="POST:PersonAddress" />
+			<apikit:flow-mapping resource="/people/{personId}/contact-methods" action="get" flow-ref="GET:PersonContactMethods" />
+			<apikit:flow-mapping resource="/people/{personId}/contact-methods" action="post" flow-ref="POST:PersonContactMethod" />
+			<apikit:flow-mapping resource="/addresses/{addressId}" action="get" flow-ref="GET:Address" />
+			<apikit:flow-mapping resource="/addresses/{addressId}" action="put" flow-ref="PUT:Address" />
+			<apikit:flow-mapping resource="/addresses/{addressId}" action="delete" flow-ref="DELETE:Address" />
+			<apikit:flow-mapping resource="/contactMethods/{contactMethodId}" action="get" flow-ref="GET:ContactMethod" />
+			<apikit:flow-mapping resource="/contactMethods/{contactMethodId}" action="put" flow-ref="PUT:ContactMethod" />
+			<apikit:flow-mapping resource="/contactMethods/{contactMethodId}" action="delete" flow-ref="DELETE:ContactMethod" />
+        </apikit:flow-mappings>
+    </apikit:config>
+    <db:config name="MS3_Database_Config" doc:name="Database Config" doc:id="0413a6c5-a27a-4228-a1b8-c1e68e91db41">
+        <db:my-sql-connection host="afichter.cgmilbpjbysn.us-east-1.rds.amazonaws.com" port="3306" user="afichter" password="baltos1983" database="ms3_contacts" />
+    </db:config>
+	<flow name="API-Main">
+        <http:listener config-ref="ms3-contact-api-httpListenerConfig" path="/ms3/*">
+            <http:response statusCode="#[vars.httpStatus default 200]" />
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="ms3-contact-api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="API-Console">
+        <http:listener config-ref="ms3-contact-api-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="ms3-contact-api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="PUT:Person">
+        <db:update doc:name="Update Person" doc:id="201733a2-702f-41d9-b706-89a8cefa1390" config-ref="MS3_Database_Config" target="UpdatePersonOut">
+            <db:sql>UPDATE person
+SET FirstName = :firstName, LastName=:lastName, DOB=:DOB,Gender=:gender,Title=:title
+WHERE personId = :personId;</db:sql>
+            <db:input-parameters><![CDATA[#[
+{
+'firstName':message.payload.firstName,
+'lastName':message.payload.lastName,
+'DOB':message.payload.DOB,
+'gender':message.payload.gender,
+'title':message.payload.title,
+'personId': message.attributes.uriParams.personId
+}
+]]]></db:input-parameters>
+        </db:update>
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="8b245dd6-029b-43e4-ad08-1f6aafe508b4">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	personId: attributes.uriParams.personId,
+	firstName: payload.firstName,
+	lastName: payload.lastName,
+	DOB: payload.DOB,
+	gender: payload.gender,
+	title: payload.title,
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="DELETE:Person">
+        <db:delete doc:name="Delete Address Info" doc:id="68420bde-b6b6-43ff-b310-eab49f1c3c0c" config-ref="MS3_Database_Config" target="DeleteAddressOut">
+            <db:sql>DELETE FROM address
+WHERE personId = :personId;</db:sql>
+            <db:input-parameters><![CDATA[#['personId':attributes.uriParams.personId]]]></db:input-parameters>
+        </db:delete>
+        <db:delete doc:name="Delete Contact Info" doc:id="b8540568-b185-4cf2-8420-185e08dcfd62" config-ref="MS3_Database_Config" target="DeleteContactInfoOut">
+            <db:sql>DELETE FROM contact_info
+WHERE personId = :personId;</db:sql>
+            <db:input-parameters><![CDATA[#['personId':attributes.uriParams.personId]]]></db:input-parameters>
+        </db:delete>
+        <db:delete doc:name="Delete Person" doc:id="f53d188e-8d75-4775-ac0b-f56a1afafa2c" config-ref="MS3_Database_Config" target="DeletePersonOut">
+            <db:sql>DELETE FROM person
+WHERE personId = :personId;</db:sql>
+            <db:input-parameters><![CDATA[#['personId':attributes.uriParams.personId]]]></db:input-parameters>
+        </db:delete>
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="355a268d-cc99-4e73-9af9-9f6075159118">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Person ID " ++ (attributes.uriParams.personId default "") ++ " was deleted."
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="GET:People">
+        <db:select doc:name="List People" doc:id="5490bdc8-5e5f-4d93-a9d7-9657f77e17a3" config-ref="MS3_Database_Config">
+            <db:sql>SELECT * FROM person;</db:sql>
+        </db:select>
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="81469243-72de-474f-9581-e09509c8849b">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	firstName: payload01.FirstName,
+	lastName: payload01.LastName,
+	gender: payload01.Gender,
+	DOB: payload01.DOB as String,
+	personId: payload01.PersonID,
+	title: payload01.Title
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="GET:Person">
+        <db:select doc:name="Get Person" doc:id="138102e1-9019-40fb-b9b4-21000dc2b27d" config-ref="MS3_Database_Config" target="GetPersonOut">
+            <db:sql>SELECT * FROM person
+WHERE personId=:personId;</db:sql>
+            <db:input-parameters><![CDATA[#[{'personId':attributes.uriParams.personId}]]]></db:input-parameters>
+        </db:select>
+        <db:select doc:name="Get Address Info" doc:id="3381afa4-b05b-41f8-b909-e8e1b92c170e" config-ref="MS3_Database_Config" target="GetAddressInfoOut">
+            <db:sql>SELECT * FROM address
+WHERE personId=:personId;</db:sql>
+            <db:input-parameters><![CDATA[#[{'personId':attributes.uriParams.personId}]]]></db:input-parameters>
+        </db:select>
+        <db:select doc:name="Get Contact Info" doc:id="27ac891c-788f-467b-9895-8be8660a50ae" config-ref="MS3_Database_Config" target="GetContactInfoOut">
+            <db:sql>SELECT * FROM contact_info
+WHERE personId=:personId;</db:sql>
+            <db:input-parameters><![CDATA[#[{'personId':attributes.uriParams.personId}]]]></db:input-parameters>
+        </db:select>
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="b6f2b6df-cd52-4620-8a41-c198056f77e6">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.GetPersonOut map ( getPersonOut , indexOfGetPersonOut ) -> {
+	personId: getPersonOut.PersonID,
+	firstName: getPersonOut.FirstName,
+	lastName: getPersonOut.LastName,
+	DOB: getPersonOut.DOB,
+	gender: getPersonOut.Gender default "",
+	title: getPersonOut.Title default "",
+	address: (vars.GetAddressInfoOut map( getAddressInfoOut , indexOfGetAddressInfoOut ) -> {
+		addressId: getAddressInfoOut.AddressID,
+		"type": getAddressInfoOut.Type,
+		number: getAddressInfoOut.Number,
+		unit: getAddressInfoOut.Unit,
+		street: getAddressInfoOut.Street,
+		city: getAddressInfoOut.City,
+		state: getAddressInfoOut.State,
+		zipcode: getAddressInfoOut.Zipcode
+	}),
+	contactMethod: (vars.GetContactInfoOut map( getContactInfoOut , indexOfGetContactInfoOut ) -> {
+		contactMethoId: getContactInfoOut.ContactID,
+		"type": getContactInfoOut.Type,
+		value: getContactInfoOut.Val,
+		preferred: getContactInfoOut.Preferred
+	})
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="POST:Person">
+        <db:insert doc:name="Insert Person" doc:id="93ae448c-b787-46e5-87eb-e2f97319e8ac" config-ref="MS3_Database_Config" autoGenerateKeys="true" target="InsertPersonOut">
+            <db:sql>INSERT INTO person (FirstName, LastName, DOB, Gender, Title)
+VALUES
+(:firstName, :lastName,:dob,:gender,:title);</db:sql>
+            <db:input-parameters><![CDATA[#[
+{
+'firstName':message.payload.firstName,
+'lastName':message.payload.lastName,
+'dob':message.payload.DOB,
+'gender':message.payload.gender,
+'title':message.payload.title
+}
+]]]></db:input-parameters>
+            <db:auto-generated-keys-column-names>
+                <db:auto-generated-keys-column-name value="personId" />
+            </db:auto-generated-keys-column-names>
+        </db:insert>
+        <db:bulk-insert doc:name="Insert Address Info" doc:id="8986d5b3-6a5b-4bd2-80be-f780b73bcdf1" config-ref="MS3_Database_Config" target="InsertAddressOut">
+            <db:bulk-input-parameters><![CDATA[#[
+payload.address map {
+'personId':vars.InsertPersonOut.generatedKeys['GENERATED_KEY'],
+'type':$."type",
+'number': $.number,
+'unit': $.unit,
+'city': $.city,
+'street':$.street,
+'state':$.state,
+'zipcode':$.zipcode
+}
+]]]></db:bulk-input-parameters>
+            <db:sql>INSERT INTO address (PersonID,Type, Number, Unit, Street, City, State, Zipcode)
+VALUES(:personId, :type, :number, :unit, :street, :city, :state, :zipcode);</db:sql>
+        </db:bulk-insert>
+        <db:bulk-insert doc:name="Insert Contact Info" doc:id="7a0ce3f9-ce54-4a97-8b5a-57b29bc69175" config-ref="MS3_Database_Config" target="InsertContactInfoOut">
+            <db:bulk-input-parameters><![CDATA[#[payload.contactMethod map {
+'personId':vars.InsertPersonOut.generatedKeys['GENERATED_KEY'],
+'type':$."type",
+'value':$.value,
+'preferred':$.preferred
+}]]]></db:bulk-input-parameters>
+            <db:sql>INSERT INTO contact_info(PersonID, Preferred, Type, Val)
+VALUES
+(:personId,:preferred, :type, :value);</db:sql>
+        </db:bulk-insert>
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="164d4ab1-5c01-45d0-9c36-bcdba5ea3a0f">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	personId: vars.InsertPersonOut.generatedKeys['GENERATED_KEY'],
+	firstName: payload.firstName,
+	lastName: payload.lastName
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+	<flow name="PUT:Address">
+        <db:update doc:name="Update Address Record" doc:id="02ee6616-3234-4ab1-9b33-4b3295c81d7f" config-ref="MS3_Database_Config" target="UpdateAddressOut">
+			<db:sql >UPDATE address
+SET 
+Type = :type,
+Number = :number,
+Unit = :unit,
+Street = :street,
+City = :city,
+State = :state,
+Zipcode = :zipcode
+WHERE 
+AddressID = :addressId;</db:sql>
+			<db:input-parameters ><![CDATA[#[
+{
+'addressId':attributes.uriParams.addressId,
+'type': message.payload."type",
+'number': message.payload.number,
+'unit': message.payload.unit,
+'street': message.payload.street,
+'city': message.payload.city,
+'state': message.payload.state,
+'zipcode': message.payload.zipcode
+}
+]]]></db:input-parameters>
+		</db:update>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="0a758f9b-0c5e-4ac8-b531-f06c2d8c6038">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	addressId: 2,
+	"type": payload."type",
+	number: payload.number,
+	unit: payload.unit,
+	street: payload.street,
+	personId: payload.personId,
+	city: payload.city,
+	state: payload.state,
+	zipcode: payload.zipcode
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="PUT:ContactMethod">
+        <db:update doc:name="Update Contact Method" doc:id="7d05895e-a85b-4619-955a-420c85e805b9" config-ref="MS3_Database_Config" target="UpdateContactMethodOut">
+			<db:sql >UPDATE contact_info
+SET
+Type = :type,
+Val = :value,
+Preferred = :preferred
+WHERE ContactID = :contactId;</db:sql>
+			<db:input-parameters ><![CDATA[#[
+{
+'contactId': attributes.uriParams.contactMethodId,
+'type': message.payload."type",
+'value': message.payload.value,
+'preferred': message.payload.preferred
+}
+]]]></db:input-parameters>
+		</db:update>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="1a8996e7-15be-415b-9c83-717dbfcf1b92">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	contactMethodId: payload.contactMethodId,
+	"type": payload."type",
+	value: payload.value,
+	preferred: payload.preferred
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="DELETE:Address">
+        <db:delete doc:name="Delete Address by ID" doc:id="1223211a-88df-4577-aba0-5ea226f5af04" config-ref="MS3_Database_Config" target="DeleteAddressOut">
+			<db:sql >DELETE FROM address
+WHERE AddressID = :addressId;</db:sql>
+			<db:input-parameters ><![CDATA[#[{'addressId':attributes.uriParams.addressId}]]]></db:input-parameters>
+		</db:delete>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="80175064-9ca4-4048-aed3-c8e43b7901ce">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Deleted Address Record with ID " ++ (attributes.uriParams.addressId as String default "")
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="DELETE:ContactMethod">
+        <db:delete doc:name="Delete Contact Method" doc:id="73ceebcc-b1ec-4330-97d7-11ec8dc8dedd" config-ref="MS3_Database_Config" target="DeleteContactMethodOut">
+			<db:sql >DELETE FROM contact_info
+WHERE ContactID = :contactId;</db:sql>
+			<db:input-parameters ><![CDATA[#[{'contactId':attributes.uriParams.contactMethodId}]]]></db:input-parameters>
+		</db:delete>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="ccc69403-35a2-4be4-98f9-98737c5ca390">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Deleted Contact Method with ID " ++ (attributes.uriParams.contactMethodId as String default "")
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="GET:PersonAddresses">
+        <db:select doc:name="Select Addresses by personId" doc:id="fef415a7-a48c-41ed-97f3-39fe43db74c7" config-ref="MS3_Database_Config">
+			<db:sql >SELECT * FROM address
+WHERE personId = :personId</db:sql>
+			<db:input-parameters ><![CDATA[#[{'personId':attributes.uriParams.personId}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="37b32bed-1d59-43bb-881b-3f31a415a687">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	zipcode: payload01.Zipcode,
+	number: payload01.Number,
+	unit: payload01.Unit,
+	city: payload01.City,
+	street: payload01.Street,
+	state: payload01.State,
+	"type": payload01.Type,
+	addressId: payload01.AddressID
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="GET:PersonContactMethods">
+        <db:select doc:name="Select Contact Methods by personId" doc:id="03afe077-7aad-481e-aaaa-c6989e4c9ea9" config-ref="MS3_Database_Config">
+			<db:sql >SELECT * FROM contact_info
+WHERE personId = :personId;</db:sql>
+			<db:input-parameters ><![CDATA[#[{'personId':attributes.uriParams.personId}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="cf934c12-0c1d-4dc3-a066-7baf57f475d8">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	contactMethodId: payload01.ContactID,
+	"type": payload01.Type,
+	value: payload01.Val,
+	preferred: payload01.Preferred default true
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="GET:Address">
+        <db:select doc:name="Select address by ID" doc:id="506592b9-87cc-41a0-93ac-ccef8c09ec93" config-ref="MS3_Database_Config" target="SelectAddressOut">
+			<db:sql >SELECT * FROM address
+WHERE addressID = :addressId</db:sql>
+			<db:input-parameters ><![CDATA[#[{'addressId':attributes.uriParams.addressId}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="8266c851-e0de-4a75-9477-d8dda46d32f6">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.SelectAddressOut map ( selectAddressOut , indexOfSelectAddressOut ) -> {
+	addressId: selectAddressOut.AddressID,
+	personId: selectAddressOut.PersonID,
+	"type": selectAddressOut.Type,
+	number: selectAddressOut.Number,
+	unit: selectAddressOut.Unit,
+	street: selectAddressOut.Street,
+	city: selectAddressOut.City,
+	state: selectAddressOut.State,
+	zipcode: selectAddressOut.Zipcode
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="GET:ContactMethod">
+        <db:select doc:name="Get Contact Method by ID" doc:id="d84fce0f-0e7b-4f56-af27-b0837747707d" config-ref="MS3_Database_Config" target="GetContactMethodOut">
+			<db:sql >SELECT * FROM contact_info
+WHERE contactID = :contactId</db:sql>
+			<db:input-parameters ><![CDATA[#[{'contactId':attributes.uriParams.contactMethodId}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="c6c6da9e-9227-4a59-9d30-66496436ebe6">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.GetContactMethodOut map ( getContactMethodOut , indexOfGetContactMethodOut ) -> {
+	contactMethodId: getContactMethodOut.ContactID,
+	personId: getContactMethodOut.PersonID,
+	"type": getContactMethodOut.Type,
+	value: getContactMethodOut.Val,
+	preferred: getContactMethodOut.Preferred
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="POST:PersonAddress">
+        <db:insert doc:name="Insert Address Record" doc:id="488b0d69-362f-4eaf-bc34-d98aa11f2b01" config-ref="MS3_Database_Config" target="InsertAddressOut" autoGenerateKeys="true">
+			<db:sql >INSERT INTO address (PersonID, Number, Unit, Street, City, State, Zipcode, Type)
+VALUES
+(:personId,:number,:unit,:street,:city,:state,:zipcode,:type)</db:sql>
+			<db:input-parameters ><![CDATA[#[
+{
+'personId':attributes.uriParams.personId,
+'number':message.payload.number,
+'unit': message.payload.unit,
+'street': message.payload.street,
+'city': message.payload.city,
+'state': message.payload.state,
+'zipcode': message.payload.zipcode,
+'type': message.payload."type"
+}
+]]]></db:input-parameters>
+			<db:auto-generated-keys-column-names >
+				<db:auto-generated-keys-column-name value="addressId" />
+			</db:auto-generated-keys-column-names>
+		</db:insert>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="9e5d90c7-8520-4f90-951d-f9b6bae61a6e">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	addressId: vars.InsertAddressOut.generatedKeys['GENERATED_KEY'],
+	"type": payload."type",
+	number: payload.number,
+	unit: payload.unit,
+	street: payload.street,
+	city: payload.city,
+	state: payload.state,
+	zipcode: payload.zipcode
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="POST:PersonContactMethod">
+        <db:insert doc:name="Insert Contact Method" doc:id="9eac8e20-1c77-48aa-b045-57602bcbcb2c" config-ref="MS3_Database_Config" autoGenerateKeys="true" target="InsertContactOut">
+			<db:sql >INSERT INTO contact_info(PersonID, Preferred, Type, Val)
+VALUES
+(:personId, :preferred, :type, :val);</db:sql>
+			<db:input-parameters ><![CDATA[#[
+{
+'personId':attributes.uriParams.personId,
+'preferred': message.payload.preferred,
+'type': message.payload."type",
+'val': message.payload.value
+}
+]]]></db:input-parameters>
+			<db:auto-generated-keys-column-names >
+				<db:auto-generated-keys-column-name value="contactId" />
+			</db:auto-generated-keys-column-names>
+		</db:insert>
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:id="2cc01082-60de-4218-8027-858a6daa7a5d">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	contactMethodId: vars.InsertContactOut.generatedKeys['GENERATED_KEY'],
+	"type": payload."type",
+	value: payload.value,
+	preferred: payload.preferred
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+</mule>
