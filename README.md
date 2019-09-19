@@ -15,8 +15,8 @@ Follow the steps in this procedure to create and run the API in your own instanc
 
 Run the MS3 Contact Management API via on CloudHub
 
-This API has been deployed to the cloud via CloudHub. To use the live version of this API, pleae access the API console at http://ms3contactsapi.us-e2.cloudhub.io/console/
-Documentation
+This API has been deployed to the cloud via CloudHub. To use the live version of this API, pleae access the API console at http://gkms3contacts.us-e2.cloudhub.io
+Note: This API right now deployed on trail version, it will not retain more than 30 days.
 
 The following documents associated with this project are available at the root level of this repository.
 
